@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
@@ -49,7 +50,7 @@ def save_cur_predict_result(dres, q, r, d, t, m, sm, p):
         results.append(str([qs, rs, ds, ts, ps, prelabels, auc, acc]))
     return "\n".join(results)
 
-def evaluate(model, test_loader, model_name, rel=None, save_path=""):
+def evaluate(model, test_loader, model_name, rel=None, save_path="", export_csv=""):
     if save_path != "":
         fout = open(save_path, "w", encoding="utf8")
     with torch.no_grad():
@@ -208,6 +209,31 @@ def evaluate(model, test_loader, model_name, rel=None, save_path=""):
         acc = metrics.accuracy_score(ts, prelabels)
     # if save_path != "":
     #     pd.to_pickle(dres, save_path+".pkl")
+    if export_csv:
+        output_path = Path(export_csv)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with output_path.open(
+            "w", encoding="utf-8-sig", newline=""
+        ) as handle:
+            writer = csv.writer(handle)
+            writer.writerow([
+                "prediction_index",
+                "actual",
+                "probability",
+                "predicted",
+            ])
+
+            for index, (actual, probability) in enumerate(zip(ts, ps)):
+                writer.writerow([
+                    index,
+                    int(actual),
+                    float(probability),
+                    int(probability >= 0.5),
+                ])
+
+        print(f"CSV exported: {output_path.resolve()}")
+
     return auc, acc
 
 def early_fusion(curhs, model, model_name):
